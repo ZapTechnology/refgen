@@ -1,0 +1,11 @@
+{
+  "name": "ReferencesGenerator",
+  "version": "1.0.0",
+  "description": "Generates a reference files from <reference> tags in js files",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "",
+  "license": "ISC"
+}
