@@ -22,13 +22,11 @@ if (!source)
 var getPattern = function () {
     return /\/\/\/\s*<reference path="([^\"]*)" \/>/g;
 };
-var start = source;
-var root = nicePathTo(start);
-var savePath = destination;
-var niceSavePath = savePath;
+var root = nicePathTo(source);
+var niceSavePath = destination;
 
 if (fs.existsSync(destination)) {
-    console.log("Output file exists, removing it");
+    console.log("Output file exists, removing...");
     fs.unlinkSync(destination);
 }
 
@@ -73,8 +71,7 @@ referencesJs += program.extra.reduce(function(soFar, extra) {
     return soFar + '/// <reference path="' + extra + '" />' + "\n";
 }, '');
 
-//console.log(referencesJs);
-fs.writeFileSync(savePath, referencesJs);
+fs.writeFileSync(destination, referencesJs);
 
 function readDirectory(path) {
     var dirContents = fs.readdirSync(path);

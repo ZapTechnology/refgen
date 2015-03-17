@@ -1,13 +1,11 @@
 {
-  "name": "ReferencesGenerator",
+  "name": "refgen",
   "version": "1.0.0",
   "description": "Generates a reference files from <reference> tags in js files",
-  "main": "index.js",
-  "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
-  },
+  "main": "refgen.js",
+  "scripts": {},
   "author": "",
-  "license": "ISC",
+  "license": "MIT",
   "dependencies": {
     "commander": "^2.7.1",
     "toposort": "^0.2.10"
