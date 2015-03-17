@@ -1,3 +1,5 @@
+#!/usr/bin/env node
+
 var program = require('commander');
 var toposort = require("toposort");
 var fs = require("fs");

@@ -1,11 +1,18 @@
 {
   "name": "refgen",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Generates a reference files from <reference> tags in js files",
-  "main": "refgen.js",
   "scripts": {},
   "author": "",
   "license": "MIT",
+  "engines": {
+    "node": ">=0.10.0"
+  },
+  "preferGlobal": true,
+  "main": "./refgen.js",
+  "bin": {
+    "refgen": "./refgen.js"
+  },
   "dependencies": {
     "commander": "^2.7.1",
     "toposort": "^0.2.10"
