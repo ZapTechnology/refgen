@@ -10,6 +10,7 @@ program
     .usage('<source>')
     .option('-o, --output <file>', 'Set the output file [references.js]', 'references.js')
     .option('-e, --extra <file>', 'Add an extra dependency', collect, [])
+    .option('-a, --assembly <file>', 'Add an assembly reference', collect, [])
     .parse(process.argv);
 
 var source = program.args[0];
@@ -21,7 +22,6 @@ if (!source)
 var getPattern = function () {
     return /\/\/\/\s*<reference path="([^\"]*)" \/>/g;
 };
-
 var start = source;
 var root = nicePathTo(start);
 var savePath = destination;
@@ -53,16 +53,18 @@ function createRelativeReference(path) {
     return '/// <reference path="~/' + relativeToRootPath + '" />';
 }
 
-function createAssemblyReference(path) {
+function createAssemblyReferences(path) {
     var relativeToRootPath = path.replace(root + "/", "");
-    var assemblyName = relativeToRootPath.replace(/\//g, '.');
-    return '/// <reference name="' + assemblyName + '" assembly="' + 'Zap.Web.Core' + '" />';
+    var scriptId = relativeToRootPath.replace(/\//g, '.');
+
+    return program.assembly.map(function(assemblyName) {
+        return '/// <reference name="' + scriptId + '" assembly="' + assemblyName + '" />';
+    });
 }
 
 var referencesJs = sorted.reduce(function (soFar, path) {
-    var relativeToRootPath = path.replace(root + "/", "");
     var relativeReference = createRelativeReference(path);
-    var assemblyReference = createAssemblyReference(path);
+    var assemblyReference = createAssemblyReferences(path).join("\n");
 
     return soFar + relativeReference + "\n" + assemblyReference + "\n" + "\n";
 }, '');
