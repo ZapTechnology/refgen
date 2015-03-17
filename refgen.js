@@ -7,10 +7,10 @@ function collect(value, values) {
 }
 
 program
-    .usage('<source>')
-    .option('-o, --output <file>', 'Set the output file [references.js]', 'references.js')
-    .option('-e, --extra <file>', 'Add an extra dependency', collect, [])
-    .option('-a, --assembly <file>', 'Add an assembly reference', collect, [])
+    .usage('[options] <source>')
+    .option('-o, --output <file>', 'Set the output file (default: references.js)', 'references.js')
+    .option('-e, --extra <id>', 'Add an extra dependency', collect, [])
+    .option('-a, --assembly <assembly>', 'Add an assembly reference', collect, [])
     .parse(process.argv);
 
 var source = program.args[0];
