@@ -3,8 +3,13 @@
   "version": "1.0.1",
   "description": "Generates a reference file from <reference> tags in js files",
   "scripts": {},
-  "author": "",
-  "license": "MIT",
+  "author": "Steve Leigh <sleigh@zaptechnology.com>",
+  "license": "BSD-2-Clause",
+  "homepage": "https://github.com/ZapTechnology/refgen",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/ZapTechnology/refgen"
+  },
   "engines": {
     "node": ">=0.10.0"
   },
