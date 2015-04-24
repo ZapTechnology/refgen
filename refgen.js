@@ -1,8 +1,8 @@
 #!/usr/bin/env node
 
 var program = require('commander');
-var toposort = require("toposort");
 var fs = require("fs");
+var refgen = require("./refgen-api.js");
 
 function collect(value, values) {
     return values.concat([value]);
@@ -13,6 +13,7 @@ program
     .option('-o, --output <file>', 'Set the output file (default: references.js)', 'references.js')
     .option('-e, --extra <id>', 'Add an extra dependency', collect, [])
     .option('-a, --assembly <assembly>', 'Add an assembly reference', collect, [])
+    .option('-x, --exclude <exclude>', 'Exclude references matching part of this', collect, [])
     .parse(process.argv);
 
 var source = program.args[0];
@@ -34,46 +35,49 @@ if (fs.existsSync(destination)) {
 
 console.log("Reading: " + root);
 console.log("Writing: " + niceSavePath);
+console.log("Excludes: " + program.exclude.join(", "));
 
 var start = +new Date();
 var files = readDirectory(root).filter(isIncluded);
-console.log("  Read " + files.length + " file(s) in " + (+new Date() - start) + 'ms');
 
-start = +new Date();
-var dependencies = files.map(getEdges);
-var edges = flatten(dependencies);
-console.log("  Found " + dependencies.length + " edges in " + (+new Date() - start) + 'ms');
+var references = refgen.findReferences(files, {
+    limitToList: true,
+    filterReference: function(reference) {
+        var shouldInclude = program.exclude.every(function (exclusion) {
+            return reference.indexOf(exclusion) === -1;
+        });
+        return shouldInclude;
+    },
+    roots: program.assembly.map(function(assembly) {
+        return {
+            "id": assembly,
+            "path": source
+        };
+    })
+});
 
-start = +new Date();
-var sorted = toposort.array(files.map(function(f) { return f.filename; }), edges).reverse();
+var referencesJs = references.verbose.reduce(function(soFar, reference) {
+
+    var relativeReference = createRelativeReference(reference);
+    var assemblyReference = createAssemblyReferences(reference).join("\n");
+    return soFar + relativeReference + "\n" + assemblyReference + "\n" + "\n";
+}, '');
+
+fs.writeFileSync(destination, referencesJs);
+
 console.log("Sorted in " + (+new Date() - start) + 'ms');
 
-function createRelativeReference(path) {
-    var relativeToRootPath = path.replace(root + "/", "");
-    return '/// <reference path="~/' + relativeToRootPath + '" />';
+function createRelativeReference(reference) {
+    return '/// <reference path="~/' + reference.path + '" />';
 }
 
-function createAssemblyReferences(path) {
-    var relativeToRootPath = path.replace(root + "/", "");
-    var scriptId = relativeToRootPath.replace(/\//g, '.');
+function createAssemblyReferences(reference) {
+    var scriptId = reference.path.replace(/\//g, '.');
 
     return program.assembly.map(function(assemblyName) {
         return '/// <reference name="' + scriptId + '" assembly="' + assemblyName + '" />';
     });
 }
-
-var referencesJs = sorted.reduce(function (soFar, path) {
-    var relativeReference = createRelativeReference(path);
-    var assemblyReference = createAssemblyReferences(path).join("\n");
-
-    return soFar + relativeReference + "\n" + assemblyReference + "\n" + "\n";
-}, '');
-
-referencesJs += program.extra.reduce(function(soFar, extra) {
-    return soFar + '/// <reference path="' + extra + '" />' + "\n";
-}, '');
-
-fs.writeFileSync(destination, referencesJs);
 
 function readDirectory(path) {
     var dirContents = fs.readdirSync(path);
@@ -95,6 +99,7 @@ function readDirectory(path) {
     return files;
 
     function toFile(f) {
+        return f;
         return {
             directory: path,
             filename: f
@@ -108,35 +113,5 @@ function nicePathTo(file) {
 }
 
 function isIncluded(file) {
-    return file.filename.indexOf('.js') != -1;
-}
-
-function getEdges(file) {
-    var contents = fs.readFileSync(file.filename).toString();
-    var matches = contents.match(getPattern());
-
-    if (!matches)
-        return [];
-
-    var dependencies = matches.map(function (line) {
-        var match = getPattern().exec(line)
-        var fullPath = match[1].indexOf("~") == -1
-            ? file.directory + "/" + match[1]
-            : match[1].replace("~", root);
-
-        if (!fs.existsSync(fullPath)) {
-            console.warn("Warning: Dependency: " + fullPath + " does not exist!\n   (from " + file.filename + ")");
-            return null;
-        }
-
-        return nicePathTo(fullPath);
-    }).filter(function(f) { return f != null });
-
-    return dependencies.map(function (d) {
-        return [file.filename, d];
-    })
-}
-
-function flatten(v) {
-    return Array.prototype.concat.apply([], v);
+    return file.indexOf('.js') != -1;
 }
