@@ -52,9 +52,12 @@ var references = refgen.findReferences(files, {
 });
 
 var referencesJs = references.verbose.reduce(function(soFar, reference) {
-    var relativeReference = createRelativeReference(reference);
-    var assemblyReference =  program.assembly ? createAssemblyReferences(reference, program.assembly).join("\n") : '';
-    return soFar + relativeReference + "\n" + assemblyReference + "\n" + "\n";
+    soFar += createRelativeReference(reference) + "\n";
+
+    if (program.assembly)
+        soFar += createAssemblyReferences(reference, program.assembly) + "\n\n";
+
+    return soFar;
 }, '');
 
 fs.writeFileSync(destination, referencesJs);
