@@ -1,14 +1,37 @@
 refgen
 ======
 
-    Usage: refgen [options] <source>
+Command Line
+------------
+  Usage: `refgen [options] <source>`
 
-    Options:
+  Options:
 
-        -h, --help                 output usage information
-        -o, --output <file>        Set the output file (default: references.js)
-        -e, --extra <id>           Add an extra dependency
-        -a, --assembly <assembly>  Add an assembly reference
+    -h, --help                 output usage information
+    -o, --output <file>        Set the output file (default: references.js)
+    -e, --extra <id>           Add an extra dependency
+    -a, --assembly <assembly>  Specify the assembly name
+    -x, --exclude <exclude>    Exclude references containing string
+
+Library
+-------
+    var refgen = require('refgen');
+    refGen.findDependencies(files, options);
+
+Example
+
+    refGen.findDependencies(['Scripts/App.js'] {
+      filterReference: function(ref) { return ref.indexOf('ExludeMe') == -1; },
+      roots: [{ id: 'rootId', path: 'Path/To/Root' }]
+      limitToList: false
+    });
+
+The following options are available:
+
+*  **filterReference**: Custom filter on whether to include a reference.  Default: `true` functor
+*  **roots**: Array of roots to support `~/` references. Default: `[]`
+*  **limitToList**: Only sort given list, do not follow references.  Default: `false`
+
 
 Description
 -----------

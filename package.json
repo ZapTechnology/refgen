@@ -1,6 +1,6 @@
 {
   "name": "refgen",
-  "version": "1.1.1",
+  "version": "2.0.0",
   "description": "Utilities for Typescript and ASP.NET-style <reference> tags",
   "scripts": {},
   "author": "Steve Leigh <sleigh@zaptechnology.com>",

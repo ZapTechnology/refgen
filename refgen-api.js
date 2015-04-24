@@ -13,22 +13,22 @@ function findReferences(files, options) {
     var references = referenceFinder.findReferences(files);
     var sorted = sortReferences(references);
 
-    sorted.verbose = sorted.map(referenceFinder.withRootInfo, referenceFinder);
+    sorted.verbose = sorted.map(referenceFinder.generateVerbose, referenceFinder);
 
     return sorted;
 }
 
 function sortReferences(references) {
-    var nodes = Object.keys(references);
+    var sourceFiles = Object.keys(references);
 
-    var graph = nodes.map(function(f) {
-        return references[f].map(function(r) {
-            return [f, r];
+    var graph = sourceFiles.map(function(sourceFile) {
+        return references[sourceFile].map(function(reference) {
+            return [sourceFile, reference];
         });
     });
 
     var edges = Array.prototype.concat.apply([], graph);
-    var sorted = toposort.array(nodes, edges);
+    var sorted = toposort.array(sourceFiles, edges);
     sorted.reverse();
     return sorted;
 }
@@ -43,17 +43,21 @@ ReferenceFinder.prototype = {
     findReferences: function (files) {
         var result = {};
         var stillToParse = files.map(this._realPath, this);
+        stillToParse.forEach(function(f) { result[f] = []; });
 
         while (stillToParse.length) {
-            var next = stillToParse.pop();
-            var references = this._searchFileForReferences(next);
+            var currentFile = stillToParse.pop();
+            var references = this._searchFileForReferences(currentFile);
 
             if (!this._options.limitToList)
                 references
                     .filter(function(r) { return !result[r]; })
-                    .forEach(function(r) { stillToParse.push(r); });
+                    .forEach(function(r) {
+                        result[r] = [];
+                        stillToParse.push(r);
+                    });
 
-            result[next] = references;
+            result[currentFile] = references;
         }
 
         return result;
@@ -61,40 +65,45 @@ ReferenceFinder.prototype = {
 
     _searchFileForReferences: function (filePath) {
         var contents = this._fs.readFileSync(filePath).toString();
-        var matches = contents.match(this._referencePattern);
 
-        if (!matches)
-            return [];
+        var pattern = this._referencePattern();
 
-        return matches
-            .map(function(line) { return this._referencePattern.exec(line)[1]; }, this)
-            .filter(function(referencePath) { return referencePath && this._options.filterReference(referencePath); }, this)
-            .map(function(referencePath) { return this._getFileNameFromReference(referencePath, filePath); }, this);
+        var referencesFiles = [];
+        var match;
+        while ((match = pattern.exec(contents))) {
+            var referencePath = match[1];
+            if (this._options.filterReference(referencePath))
+                referencesFiles.push(this._getFileNameFromReference(filePath, referencePath));
+        }
+
+        return referencesFiles;
     },
 
-    get _referencePattern() {
+    _referencePattern: function() {
+        // Captures Foo in <reference path="Foo" />
         return /\/\/\/\s*<reference path="([^"]*)"\s?\/>/g;
     },
 
-    _getFileNameFromReference: function (referencePath, sourcePath) {
+    _getFileNameFromReference: function (sourceFilePath, referencePath) {
         var fileSystemPath;
         if (referencePath[0] == '~') {
-            var root = this._getRoot(sourcePath);
+            var root = this._getRoot(sourceFilePath);
             fileSystemPath = this._realPath(root.path) + '/' + referencePath.substr(1);
         } else {
-            var sourcePathFolder = sourcePath.split('/').slice(0, -1).join('/');
-            var fileSystemPath = this._path.normalize(path.join(sourcePathFolder, referencePath));
+            var sourceFileFolder = this._path.dirname(sourceFilePath);
+            fileSystemPath = this._path.normalize(this._path.join(sourceFileFolder, referencePath));
         }
+
         try {
             return this._realPath(fileSystemPath);
         } catch (error) {
             if (error instanceof InvalidPathError) {
-                throw new InvalidReferenceError(referencePath, sourcePath)
+                throw new InvalidReferenceError(referencePath, sourceFilePath)
             }
         }
     },
 
-    withRootInfo: function(path) {
+    generateVerbose: function(path) {
         var root = this._getRoot(path);
         var rootPath = this._realPath(root.path);
 
@@ -107,23 +116,14 @@ ReferenceFinder.prototype = {
 
     _getRoot: function(path) {
         var roots = this._options.roots;
-        var realPath = this._realPath.bind(this);
 
-        var root = roots
-            .reduce(function(root, potentialRoot) {
-                if (root)
-                    return root;
+        for (var i=0; i < roots.length; i++) {
+            var root = roots[i];
+            if (path.indexOf(this._realPath(root.path)) === 0)
+                return root;
+        }
 
-                if (path.indexOf(realPath(potentialRoot.path)) === 0)
-                    return potentialRoot;
-
-                return null;
-            }, null, this);
-
-        if (!root)
-            throw "No root found for " + path;
-
-        return root;
+        throw new RootNotFoundError(path);
     },
 
     _realPath: function (path) {
@@ -136,15 +136,30 @@ ReferenceFinder.prototype = {
         var realPath = this._fs.realpathSync(path)
             .replace(/\\/g, '/');
 
-        var directory = this._path.dirname(realPath);
-        var allFiles = fs.readdirSync(directory);
-
-        if (allFiles.every(function(f) { return realPath.indexOf(f) == -1 }))
-            throw new InvalidPathError(path);
+        this._ensurePathIsCorrectCase(realPath);
 
         return this._cachedPaths[path] = realPath;
+    },
+
+    _ensurePathIsCorrectCase: function(path) {
+        var directory = this._path.dirname(path);
+
+        // Throw errors for incorrect casing, since realpathSync returns files with the same
+        // case that was passed into it.
+        var fileIsDifferentCase = this._fs.readdirSync(directory).every(function (f) {
+            return path.indexOf(f) == -1
+        });
+        if (fileIsDifferentCase)
+            throw new InvalidPathError(path);
     }
 };
+
+function RootNotFoundError(path) {
+    this.name = "RootNotFoundError";
+    this.message = "No root found for: " + path;
+    this.path = path;
+}
+RootNotFoundError.prototype = Error.prototype;
 
 function InvalidPathError(path) {
     this.name = "InvalidPathError";

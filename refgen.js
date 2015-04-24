@@ -12,8 +12,8 @@ program
     .usage('[options] <source>')
     .option('-o, --output <file>', 'Set the output file (default: references.js)', 'references.js')
     .option('-e, --extra <id>', 'Add an extra dependency', collect, [])
-    .option('-a, --assembly <assembly>', 'Add an assembly reference', collect, [])
-    .option('-x, --exclude <exclude>', 'Exclude references matching part of this', collect, [])
+    .option('-a, --assembly <assembly>', 'Specify the assembly name', null)
+    .option('-x, --exclude <exclude>', 'Exclude references containing string', collect, [])
     .parse(process.argv);
 
 var source = program.args[0];
@@ -22,9 +22,6 @@ var destination = program.output;
 if (!source)
     program.help();
 
-var getPattern = function () {
-    return /\/\/\/\s*<reference path="([^\"]*)" \/>/g;
-};
 var root = nicePathTo(source);
 var niceSavePath = destination;
 
@@ -35,7 +32,7 @@ if (fs.existsSync(destination)) {
 
 console.log("Reading: " + root);
 console.log("Writing: " + niceSavePath);
-console.log("Excludes: " + program.exclude.join(", "));
+console.log("Excludes: " + program.exclude.join("; "));
 
 var start = +new Date();
 var files = readDirectory(root).filter(isIncluded);
@@ -48,18 +45,15 @@ var references = refgen.findReferences(files, {
         });
         return shouldInclude;
     },
-    roots: program.assembly.map(function(assembly) {
-        return {
-            "id": assembly,
-            "path": source
-        };
-    })
+    roots: [{
+        id: program.assembly || 'Default',
+        path: source
+    }]
 });
 
 var referencesJs = references.verbose.reduce(function(soFar, reference) {
-
     var relativeReference = createRelativeReference(reference);
-    var assemblyReference = createAssemblyReferences(reference).join("\n");
+    var assemblyReference =  program.assembly ? createAssemblyReferences(reference, program.assembly).join("\n") : '';
     return soFar + relativeReference + "\n" + assemblyReference + "\n" + "\n";
 }, '');
 
@@ -71,12 +65,10 @@ function createRelativeReference(reference) {
     return '/// <reference path="~/' + reference.path + '" />';
 }
 
-function createAssemblyReferences(reference) {
+function createAssemblyReferences(reference, assemblyName) {
     var scriptId = reference.path.replace(/\//g, '.');
 
-    return program.assembly.map(function(assemblyName) {
-        return '/// <reference name="' + scriptId + '" assembly="' + assemblyName + '" />';
-    });
+    return '/// <reference name="' + scriptId + '" assembly="' + assemblyName + '" />';
 }
 
 function readDirectory(path) {
@@ -93,18 +85,10 @@ function readDirectory(path) {
         if (stats.isDirectory()) {
             files = files.concat(readDirectory(fullPath));
         } else
-            files.push(toFile(fullPath));
+            files.push(fullPath);
     });
 
     return files;
-
-    function toFile(f) {
-        return f;
-        return {
-            directory: path,
-            filename: f
-        };
-    }
 }
 
 function nicePathTo(file) {
