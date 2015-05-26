@@ -10,7 +10,7 @@ function findReferences(files, options) {
         options.filterReference = function() { return true; };
 
     var referenceFinder = new ReferenceFinder(options, fs, path);
-    var references = referenceFinder.findReferences(files);
+    var references = referenceFinder.findReferences(files, options.extraDependencies);
     var sorted = sortReferences(references);
 
     sorted.verbose = sorted.map(referenceFinder.generateVerbose, referenceFinder);
@@ -40,14 +40,22 @@ function ReferenceFinder(options, fs, path) {
     this._cachedPaths = {};
 }
 ReferenceFinder.prototype = {
-    findReferences: function (files) {
+    findReferences: function (files, extraDependencies) {
+        extraDependencies = extraDependencies || {};
         var result = {};
         var stillToParse = files.map(this._realPath, this);
         stillToParse.forEach(function(f) { result[f] = []; });
 
+        var normalizedExtraDependencies = {};
+        Object.keys(extraDependencies).forEach(function(key) {
+            normalizedExtraDependencies[this._realPath(key)] = extraDependencies[key].map(this._realPath, this);
+        }, this);
+
         while (stillToParse.length) {
             var currentFile = stillToParse.pop();
-            var references = this._searchFileForReferences(currentFile);
+            var references = this._searchFileForReferences(currentFile, normalizedExtraDependencies);
+
+            references = references.concat(normalizedExtraDependencies[currentFile] || []);
 
             if (!this._options.limitToList)
                 references
@@ -68,15 +76,15 @@ ReferenceFinder.prototype = {
 
         var pattern = this._referencePattern();
 
-        var referencesFiles = [];
+        var referencedFiles = [];
         var match;
         while ((match = pattern.exec(contents))) {
             var referencePath = match[1];
             if (this._options.filterReference(referencePath))
-                referencesFiles.push(this._getFileNameFromReference(filePath, referencePath));
+                referencedFiles.push(this._getFileNameFromReference(filePath, referencePath));
         }
 
-        return referencesFiles;
+        return referencedFiles;
     },
 
     _referencePattern: function() {

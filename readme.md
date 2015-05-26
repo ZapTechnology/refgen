@@ -23,6 +23,7 @@ Example
     refGen.findDependencies(['Scripts/App.js'] {
       filterReference: function(ref) { return ref.indexOf('ExludeMe') == -1; },
       roots: [{ id: 'rootId', path: 'Path/To/Root' }]
+      extraDependencies { 'relativePath': ['extraDependency1', 'extraDependency2'] }
       limitToList: false
     });
 
@@ -31,6 +32,7 @@ The following options are available:
 *  **filterReference**: Custom filter on whether to include a reference.  Default: `true` functor
 *  **roots**: Array of roots to support `~/` references. Default: `[]`
 *  **limitToList**: Only sort given list, do not follow references.  Default: `false`
+*  **extraDependencies**: Add extra dependencies to files.  All paths should be relative.  Default: `{}`
 
 
 Description
