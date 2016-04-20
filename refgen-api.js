@@ -13,7 +13,7 @@ function findReferences(files, options) {
     var references = referenceFinder.findReferences(files, options.extraDependencies);
     var sorted = sortReferences(references);
 
-    sorted.verbose = sorted.map(referenceFinder.generateVerbose, referenceFinder);
+    sorted.verbose = sorted.map(function (path) { return referenceFinder.generateVerbose(path, references); });
 
     return sorted;
 }
@@ -111,14 +111,17 @@ ReferenceFinder.prototype = {
         }
     },
 
-    generateVerbose: function(path) {
+    generateVerbose: function(path, references) {
         var root = this._getRoot(path);
         var rootPath = this._realPath(root.path);
 
         return {
             rootId: root.id,
             path: path.replace(rootPath + '/', ''),
-            filePath: path
+            filePath: path,
+            references: (references[path] || []).map(function (ref) {
+                return this.generateVerbose(ref, {}); // Don't want to recurse into references' references
+            }, this)
         };
     },
 
@@ -127,7 +130,7 @@ ReferenceFinder.prototype = {
 
         for (var i=0; i < roots.length; i++) {
             var root = roots[i];
-            if (path.indexOf(this._realPath(root.path)) === 0)
+            if (path.indexOf(this._realPath(root.path) + '/') === 0)
                 return root;
         }
 
